@@ -26,5 +26,19 @@ public class FHIRValidatorUtil {
             }
         }
     }
+
+    public static void validateResource(org.hl7.fhir.r4.model.Resource resource) {
+
+        var ctx = ca.uhn.fhir.context.FhirContext.forR4();
+        var validator = ctx.newValidator();
+
+        var result = validator.validateWithResult(resource);
+
+        if (!result.isSuccessful()) {
+            throw new RuntimeException(
+                    "FHIR Validation Failed: " + result.toString()
+            );
+        }
+    }
 }
 
