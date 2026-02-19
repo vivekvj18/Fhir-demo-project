@@ -37,6 +37,10 @@ public class HospitalAOPConsultToFHIRBundleMapper {
                 )
         );
 
+        encounter.setSubject(
+                new Reference("Patient/" + dto.getPatientId())
+        );
+
         LocalDate visitDate =
                 LocalDate.parse(dto.getVisitDate(), INPUT_DATE_FORMAT);
 
@@ -57,24 +61,63 @@ public class HospitalAOPConsultToFHIRBundleMapper {
         // ---------------- Observation: Temperature ----------------
         Observation tempObs = new Observation();
         tempObs.setStatus(Observation.ObservationStatus.FINAL);
-        tempObs.getCode().setText("Body Temperature");
+
+        tempObs.getCode().addCoding(
+                new Coding()
+                        .setSystem("http://loinc.org")
+                        .setCode("8310-5")
+                        .setDisplay("Body temperature")
+        );
+
+        tempObs.setSubject(
+                new Reference("Patient/" + dto.getPatientId())
+        );
+
         tempObs.setValue(
                 new Quantity()
                         .setValue(dto.getTemperature())
-                        .setUnit("°F")
+                        .setUnit("F")
         );
 
         // ---------------- Observation: BP ----------------
         Observation bpObs = new Observation();
         bpObs.setStatus(Observation.ObservationStatus.FINAL);
-        bpObs.getCode().setText("Blood Pressure");
+
+        bpObs.getCode().addCoding(
+                new Coding()
+                        .setSystem("http://loinc.org")
+                        .setCode("85354-9")
+                        .setDisplay("Blood pressure panel")
+        );
+
+        bpObs.setSubject(
+                new Reference("Patient/" + dto.getPatientId())
+        );
+
         bpObs.setValue(new StringType(dto.getBloodPressure()));
 
-        // ---------------- Observation: Symptoms ----------------
-        Observation symptomsObs = new Observation();
-        symptomsObs.setStatus(Observation.ObservationStatus.FINAL);
-        symptomsObs.getCode().setText("Symptoms");
-        symptomsObs.setValue(new StringType(dto.getSymptoms()));
+        // ---------------- Condition (Symptom → SNOMED) ----------------
+        Condition condition = new Condition();
+
+        condition.setClinicalStatus(
+                new CodeableConcept().addCoding(
+                        new Coding()
+                                .setSystem("http://terminology.hl7.org/CodeSystem/condition-clinical")
+                                .setCode("active")
+                )
+        );
+
+        condition.getCode().addCoding(
+                new Coding()
+                        .setSystem("http://snomed.info/sct")
+                        .setCode("386661006")   // Fever
+                        .setDisplay(dto.getSymptoms())
+        );
+
+// Link Condition to Patient
+        condition.setSubject(
+                new Reference("Patient/" + dto.getPatientId())
+        );
 
         // ---------------- Bundle ----------------
         Bundle bundle = new Bundle();
@@ -84,7 +127,7 @@ public class HospitalAOPConsultToFHIRBundleMapper {
         bundle.addEntry().setResource(encounter);
         bundle.addEntry().setResource(tempObs);
         bundle.addEntry().setResource(bpObs);
-        bundle.addEntry().setResource(symptomsObs);
+        bundle.addEntry().setResource(condition);
 
         return bundle;
     }

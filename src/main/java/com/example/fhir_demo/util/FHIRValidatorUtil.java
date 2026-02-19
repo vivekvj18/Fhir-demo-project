@@ -3,42 +3,31 @@ package com.example.fhir_demo.util;
 import ca.uhn.fhir.context.FhirContext;
 import ca.uhn.fhir.validation.FhirValidator;
 import ca.uhn.fhir.validation.ValidationResult;
-import ca.uhn.fhir.validation.SingleValidationMessage;
-import org.hl7.fhir.r4.model.Patient;
+import org.hl7.fhir.r4.model.Resource;
 
 public class FHIRValidatorUtil {
 
-    private static final FhirContext fhirContext = FhirContext.forR4();
+    private static final FhirContext ctx = FhirContext.forR4();
+    private static final FhirValidator validator = ctx.newValidator();
 
-    public static void validatePatient(Patient patient) {
+    public static String validateResource(Resource resource) {
 
-        FhirValidator validator = fhirContext.newValidator();
-        ValidationResult result = validator.validateWithResult(patient);
+        ValidationResult result =
+                validator.validateWithResult(resource);
 
         if (result.isSuccessful()) {
-            System.out.println("FHIR Patient is VALID ✅");
-        } else {
-            System.out.println("FHIR Patient is INVALID ❌");
-            for (SingleValidationMessage message : result.getMessages()) {
-                System.out.println(
-                        message.getSeverity() + " : " + message.getMessage()
-                );
-            }
+            return "FHIR Validation Successful ✅";
         }
-    }
 
-    public static void validateResource(org.hl7.fhir.r4.model.Resource resource) {
+        StringBuilder errors = new StringBuilder();
 
-        var ctx = ca.uhn.fhir.context.FhirContext.forR4();
-        var validator = ctx.newValidator();
+        result.getMessages().forEach(msg ->
+                errors.append(msg.getSeverity())
+                        .append(" - ")
+                        .append(msg.getMessage())
+                        .append("\n")
+        );
 
-        var result = validator.validateWithResult(resource);
-
-        if (!result.isSuccessful()) {
-            throw new RuntimeException(
-                    "FHIR Validation Failed: " + result.toString()
-            );
-        }
+        return errors.toString();
     }
 }
-
