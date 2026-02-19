@@ -54,27 +54,52 @@ public class FHIRBundleToHospitalBOPConsultMapper {
 
             // -------- Observations --------
             else if (entry.getResource() instanceof Observation) {
-                Observation obs = (Observation) entry.getResource();
-                String code = obs.getCode().getText();
 
-                if ("Blood Pressure".equalsIgnoreCase(code)) {
-                    vitals.setBp(
-                            obs.getValueStringType().getValue()
-                    );
+                Observation obs = (Observation) entry.getResource();
+
+                if (obs.hasCode() && obs.getCode().hasCoding()) {
+
+                    String loincCode = obs.getCode()
+                            .getCodingFirstRep()
+                            .getCode();
+
+                    // Body Temperature (LOINC 8310-5)
+                    if ("8310-5".equals(loincCode)
+                            && obs.hasValueQuantity()) {
+
+                        vitals.setTemp(
+                                obs.getValueQuantity()
+                                        .getValue()
+                                        .toString()
+                        );
+                    }
+
+                    // Blood Pressure Panel (LOINC 85354-9)
+                    else if ("85354-9".equals(loincCode)
+                            && obs.hasValueStringType()) {
+
+                        vitals.setBp(
+                                obs.getValueStringType().getValue()
+                        );
+                    }
                 }
-                else if ("Body Temperature"
-                        .equalsIgnoreCase(code)
-                        && obs.hasValueQuantity()) {
-                    vitals.setTemp(
-                            obs.getValueQuantity()
-                                    .getValue()
-                                    .toString()
-                    );
-                }
-                else if ("Symptoms".equalsIgnoreCase(code)) {
-                    dto.setClinicalNotes(
-                            obs.getValueStringType().getValue()
-                    );
+            }
+
+            else if (entry.getResource() instanceof Condition) {
+
+                Condition condition = (Condition) entry.getResource();
+
+                if (condition.hasCode()
+                        && condition.getCode().hasCoding()) {
+
+                    String snomedCode = condition.getCode()
+                            .getCodingFirstRep()
+                            .getCode();
+
+                    // Fever (SNOMED 386661006)
+                    if ("386661006".equals(snomedCode)) {
+                        dto.setClinicalNotes("Fever");
+                    }
                 }
             }
         }
