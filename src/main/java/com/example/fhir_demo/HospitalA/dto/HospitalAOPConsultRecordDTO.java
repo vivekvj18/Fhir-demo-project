@@ -12,4 +12,5 @@ public class HospitalAOPConsultRecordDTO {
     private String symptoms;        // Clinical notes
     private Double temperature;     // Body temperature
     private String bloodPressure;   // BP reading
+    private String prescriptionPdfBase64;
 }

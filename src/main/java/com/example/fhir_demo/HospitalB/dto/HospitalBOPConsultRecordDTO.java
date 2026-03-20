@@ -10,7 +10,7 @@ public class HospitalBOPConsultRecordDTO {
     private String consultDate;
     private String doctor;
     private String clinicalNotes;
-
+    private String prescriptionPdfBase64;
     private Vitals vitals;
 
     @Data

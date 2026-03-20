@@ -3,9 +3,13 @@ package com.example.fhir_demo.mapper;
 import com.example.fhir_demo.HospitalB.dto.HospitalBOPConsultRecordDTO;
 import org.hl7.fhir.r4.model.*;
 
+import java.util.Base64;
+
 public class FHIRBundleToHospitalBOPConsultMapper {
 
     public static HospitalBOPConsultRecordDTO map(Bundle bundle) {
+
+        HospitalBOPConsultRecordDTO hospitalBDto = new HospitalBOPConsultRecordDTO();
 
         HospitalBOPConsultRecordDTO dto =
                 new HospitalBOPConsultRecordDTO();
@@ -101,6 +105,19 @@ public class FHIRBundleToHospitalBOPConsultMapper {
                         dto.setClinicalNotes("Fever");
                     }
                 }
+            }
+            if (entry.getResource() instanceof DocumentReference) {
+
+                DocumentReference docRef = (DocumentReference) entry.getResource();
+
+                byte[] pdfData = docRef.getContentFirstRep()
+                        .getAttachment()
+                        .getData();
+
+                // Convert back to Base64 (for DTO)
+                String base64Pdf = Base64.getEncoder().encodeToString(pdfData);
+
+                dto.setPrescriptionPdfBase64(base64Pdf);
             }
         }
 

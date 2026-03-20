@@ -6,6 +6,7 @@ import org.hl7.fhir.r4.model.*;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.Base64;
 import java.util.Date;
 
 public class HospitalAOPConsultToFHIRBundleMapper {
@@ -119,6 +120,31 @@ public class HospitalAOPConsultToFHIRBundleMapper {
                 new Reference("Patient/" + dto.getPatientId())
         );
 
+        // ---------------- DocumentReference (PDF) ----------------
+        DocumentReference docRef = new DocumentReference();
+
+// Status
+        docRef.setStatus(Enumerations.DocumentReferenceStatus.CURRENT);
+
+// Type
+        CodeableConcept type = new CodeableConcept();
+        type.addCoding()
+                .setSystem("http://loinc.org")
+                .setCode("60591-5")
+                .setDisplay("Prescription Document");
+
+        docRef.setType(type);
+
+// Attachment
+        Attachment attachment = new Attachment();
+        attachment.setContentType("application/pdf");
+
+        attachment.setData(
+                Base64.getDecoder().decode(dto.getPrescriptionPdfBase64())
+        );
+
+        docRef.addContent().setAttachment(attachment);
+
         // ---------------- Bundle ----------------
         Bundle bundle = new Bundle();
         bundle.setType(Bundle.BundleType.COLLECTION);
@@ -128,6 +154,7 @@ public class HospitalAOPConsultToFHIRBundleMapper {
         bundle.addEntry().setResource(tempObs);
         bundle.addEntry().setResource(bpObs);
         bundle.addEntry().setResource(condition);
+        bundle.addEntry().setResource(docRef);
 
         return bundle;
     }
