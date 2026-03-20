@@ -11,6 +11,7 @@ public class HospitalAOPConsultRecordDTO {
     private String visitDate;       // dd/MM/yyyy (Hospital-A format)
     private String symptoms;        // Clinical notes
     private Double temperature;     // Body temperature
-    private String bloodPressure;   // BP reading
+    private String bloodPressure;
     private String prescriptionPdfBase64;
+
 }

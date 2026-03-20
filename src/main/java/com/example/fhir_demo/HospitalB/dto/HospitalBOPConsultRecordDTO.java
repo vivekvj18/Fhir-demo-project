@@ -13,6 +13,7 @@ public class HospitalBOPConsultRecordDTO {
     private String prescriptionPdfBase64;
     private Vitals vitals;
 
+
     @Data
     public static class Vitals {
         private String bp;

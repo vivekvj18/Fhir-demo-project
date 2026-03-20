@@ -9,115 +9,85 @@ public class FHIRBundleToHospitalBOPConsultMapper {
 
     public static HospitalBOPConsultRecordDTO map(Bundle bundle) {
 
-        HospitalBOPConsultRecordDTO hospitalBDto = new HospitalBOPConsultRecordDTO();
-
-        HospitalBOPConsultRecordDTO dto =
-                new HospitalBOPConsultRecordDTO();
-        HospitalBOPConsultRecordDTO.Vitals vitals =
-                new HospitalBOPConsultRecordDTO.Vitals();
+        HospitalBOPConsultRecordDTO dto = new HospitalBOPConsultRecordDTO();
+        HospitalBOPConsultRecordDTO.Vitals vitals = new HospitalBOPConsultRecordDTO.Vitals();
 
         for (Bundle.BundleEntryComponent entry : bundle.getEntry()) {
 
             // -------- Patient --------
-            if (entry.getResource() instanceof Patient) {
-                Patient patient = (Patient) entry.getResource();
-
+            if (entry.getResource() instanceof Patient patient) {
                 dto.setUhid(patient.getId());
-
-                if (patient.hasName()
-                        && patient.getNameFirstRep().hasText()) {
-                    dto.setPatientName(
-                            patient.getNameFirstRep().getText()
-                    );
+                if (patient.hasName() && patient.getNameFirstRep().hasText()) {
+                    dto.setPatientName(patient.getNameFirstRep().getText());
                 }
             }
 
             // -------- Encounter --------
-            else if (entry.getResource() instanceof Encounter) {
-                Encounter encounter = (Encounter) entry.getResource();
-
-                if (encounter.hasPeriod()
-                        && encounter.getPeriod().hasStart()) {
-                    dto.setConsultDate(
-                            encounter.getPeriod()
-                                    .getStart()
-                                    .toString()
-                    );
+            else if (entry.getResource() instanceof Encounter encounter) {
+                if (encounter.hasPeriod() && encounter.getPeriod().hasStart()) {
+                    dto.setConsultDate(encounter.getPeriod().getStart().toString());
                 }
-
                 if (encounter.hasParticipant()
-                        && encounter.getParticipantFirstRep()
-                        .hasIndividual()) {
+                        && encounter.getParticipantFirstRep().hasIndividual()) {
                     dto.setDoctor(
-                            encounter.getParticipantFirstRep()
-                                    .getIndividual()
-                                    .getDisplay()
+                            encounter.getParticipantFirstRep().getIndividual().getDisplay()
                     );
                 }
             }
 
             // -------- Observations --------
-            else if (entry.getResource() instanceof Observation) {
+            else if (entry.getResource() instanceof Observation obs) {
+                if (!obs.hasCode() || !obs.getCode().hasCoding()) continue;
 
-                Observation obs = (Observation) entry.getResource();
+                String loincCode = obs.getCode().getCodingFirstRep().getCode();
 
-                if (obs.hasCode() && obs.getCode().hasCoding()) {
+                // Body Temperature (LOINC 8310-5)
+                if ("8310-5".equals(loincCode) && obs.hasValueQuantity()) {
+                    vitals.setTemp(
+                            obs.getValueQuantity().getValue().toPlainString()
+                    );
+                }
 
-                    String loincCode = obs.getCode()
-                            .getCodingFirstRep()
-                            .getCode();
+                // ✅ FIX 1: Blood Pressure Panel (LOINC 85354-9) — read from components
+                // The old code tried to read a StringType value which no longer exists.
+                else if ("85354-9".equals(loincCode) && obs.hasComponent()) {
+                    String systolic  = null;
+                    String diastolic = null;
 
-                    // Body Temperature (LOINC 8310-5)
-                    if ("8310-5".equals(loincCode)
-                            && obs.hasValueQuantity()) {
+                    for (Observation.ObservationComponentComponent comp : obs.getComponent()) {
+                        if (!comp.hasCode() || !comp.getCode().hasCoding()) continue;
+                        String compCode = comp.getCode().getCodingFirstRep().getCode();
 
-                        vitals.setTemp(
-                                obs.getValueQuantity()
-                                        .getValue()
-                                        .toString()
-                        );
+                        if ("8480-6".equals(compCode) && comp.hasValueQuantity()) {
+                            systolic = comp.getValueQuantity().getValue().toPlainString();
+                        } else if ("8462-4".equals(compCode) && comp.hasValueQuantity()) {
+                            diastolic = comp.getValueQuantity().getValue().toPlainString();
+                        }
                     }
 
-                    // Blood Pressure Panel (LOINC 85354-9)
-                    else if ("85354-9".equals(loincCode)
-                            && obs.hasValueStringType()) {
-
-                        vitals.setBp(
-                                obs.getValueStringType().getValue()
-                        );
+                    // Reassemble as "120/80" for Hospital-B's internal format
+                    if (systolic != null && diastolic != null) {
+                        vitals.setBp(systolic + "/" + diastolic);
                     }
                 }
             }
 
-            else if (entry.getResource() instanceof Condition) {
-
-                Condition condition = (Condition) entry.getResource();
-
-                if (condition.hasCode()
-                        && condition.getCode().hasCoding()) {
-
-                    String snomedCode = condition.getCode()
-                            .getCodingFirstRep()
-                            .getCode();
-
-                    // Fever (SNOMED 386661006)
+            // -------- Condition --------
+            else if (entry.getResource() instanceof Condition condition) {
+                if (condition.hasCode() && condition.getCode().hasCoding()) {
+                    String snomedCode = condition.getCode().getCodingFirstRep().getCode();
                     if ("386661006".equals(snomedCode)) {
                         dto.setClinicalNotes("Fever");
                     }
                 }
             }
-            if (entry.getResource() instanceof DocumentReference) {
 
-                DocumentReference docRef = (DocumentReference) entry.getResource();
-
+            // -------- DocumentReference --------
+            else if (entry.getResource() instanceof DocumentReference docRef) {
                 byte[] pdfData = docRef.getContentFirstRep()
                         .getAttachment()
                         .getData();
-
-                // Convert back to Base64 (for DTO)
-                String base64Pdf = Base64.getEncoder().encodeToString(pdfData);
-
-                dto.setPrescriptionPdfBase64(base64Pdf);
+                dto.setPrescriptionPdfBase64(Base64.getEncoder().encodeToString(pdfData));
             }
         }
 
